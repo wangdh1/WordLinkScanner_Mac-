@@ -43,6 +43,7 @@ assets/forest_ant_window.png
 ## 常见问题
 
 - **Actions 页面没出现那个工作流**：确认 `.github/workflows/build-mac.yml` 已上传且路径正确（`.github` 是点开头的隐藏目录）。
+- **报错 `The configuration 'macos-14-...' is not supported`**：当前配置已改为 `macos-latest`。若你之前上传的是旧版，请在仓库里打开 `.github/workflows/build-mac.yml` → 编辑 → 把 `runs-on: macos-14` 改成 `runs-on: macos-latest` → Commit，再重新 Run workflow。若 `macos-latest` 仍不支持，改成 `macos-13`（Intel 芯片，M3 上会通过 Rosetta 2 运行，功能一致）。
 - **编译失败红色叉**：点进去看日志，把报错发我。
 - **不想用 Public 仓库**：Private 仓库的 Actions 分钟数有免费额度，小项目够用，也可选 Private。
 - **下载需要登录 GitHub**：Artifacts 需登录账号下载，属正常。
