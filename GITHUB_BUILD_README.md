@@ -11,10 +11,37 @@
 1. 打开 https://github.com ，登录你的账号。
 2. 点右上角 `+` → `New repository`，仓库名随意（如 `wordlinkscanner`），选 **Public**，勾上
    "Add a README file"，点 `Create repository`。
-3. 进入仓库页面，点 `Add file` → `Upload files`，把解压后的 `WordLinkScanner` 文件夹里
-   **全部文件和子文件夹**（含 `.github` 文件夹、`assets` 文件夹）拖进去，点 `Commit changes`。
-   - 注意：`.github` 是隐藏文件夹，拖整个文件夹进去即可，别漏掉。
-   - 不需要上传 `build/`、`dist/`、测试文件——传核心文件即可（见下方清单）。
+3. 进入仓库页面，点 `Add file` → `Upload files`，**只上传下面这些源码文件**（可整体拖入 `assets` 与 `.github` 两个文件夹），
+   然后点 `Commit changes`：
+
+   **需要上传（就这些）**
+   ```
+   app.py
+   scanner.py
+   requirements.txt
+   MAC_README.md
+   GITHUB_BUILD_README.md
+   build_mac.sh
+   一键编译Mac版.command
+   .gitignore
+   .gitattributes
+   assets/                       ← 整个文件夹（3 个图片/图标文件）
+   .github/workflows/build-mac.yml   ← 关键：云端编译脚本，别漏（.github 是点开头的隐藏文件夹）
+   ```
+
+   **不要上传**（传了会出事或没必要）
+   ```
+   build/          ← 上次编译的中间产物，体积大
+   dist/           ← 上次编译的成品（.exe / .app / 各种 zip）。最危险的一个：
+                     里面的旧版压缩包带的是旧构建配置，谁拿它去编译都会复现「应用已损坏」
+   __pycache__/    ← Python 缓存
+   *.spec          ← 本机生成的临时打包描述文件
+   test_*.py       ← 测试脚本，运行时不需要
+   probe_playwright.py
+   ```
+
+   > 仓库根已放好 `.gitignore`，把 `build/`、`dist/`、`__pycache__/`、`*.spec`、`*.pyc`、`.DS_Store`
+   > 都挡住了——用 git 推送时它们不会被带上去；网页拖拽上传则要你自己别选这几个。
 
 ## 第二步：点一下按钮开始编译
 
@@ -31,18 +58,25 @@
 3. 把 **`WordLinkScanner` 图标拖到 `Applications` 上**，松手即完成安装（这就是常见的 Mac 安装方式）。
 4. 打开「启动台」或「应用程序」文件夹，双击 `WordLinkScanner` 运行。
 
-> **首次打开若提示「无法验证开发者」**：别点「删除」，改成 **右键点击 app 图标 → 打开 → 再点「打开」**，
-> 之后系统就记住这个选择了，以后双击可正常打开。
+> **首次打开被系统拦下（提示「无法验证开发者」／「Apple 无法验证此 App 是否包含恶意软件」）**
+>
+> 注意：**macOS 15（Sequoia）起，旧的「右键 → 打开」快捷绕过方式已被 Apple 移除**，现在请按主方案操作：
+>
+> **主方案**：先双击一次 app（会提示被阻止，点「完成」/「好」）→ 打开
+> **系统设置 → 隐私与安全性** → 页面往下滚到「安全性」区域 → 会看到
+> 「已阻止使用 WordLinkScanner，因为来自身份不明的开发者」→ 点 **「仍要打开」** → 输入开机密码/指纹确认。
+> 之后从「应用程序」双击即可正常启动，系统会记住这个选择。
 
-> **如果仍提示「应用已损坏，无法打开，你应该将它移到废纸篓」**：这不是文件真的坏了，而是 macOS 给下载
-> 的文件打了「隔离」标记。打开「终端」（Launchpad 里搜 `终端` 或 `Terminal`），粘贴下面一行回车即可：
+> **如果双击提示「应用已损坏，无法打开，你应该将它移到废纸篓」**
+> （这是下载隔离标记导致的，不是文件真坏了）——**先执行下面这行命令，再双击**：
 >
 > ```
 > xattr -cr /Applications/WordLinkScanner.app
 > ```
 >
-> 然后重新双击 app 就能运行。注意路径要对应你实际放置的位置：如果 app 还在 dmg 窗口里没拖进应用程序，
-> 命令应写成 `xattr -cr /Volumes/WordLinkScanner/WordLinkScanner.app`。
+> 这条命令同时也是上面「无法验证开发者」场景的**并列解法**，效果等同于去设置里点「仍要打开」。
+> 路径按实际位置调整：如果 app 还在 dmg 窗口里没拖进「应用程序」，路径是
+> `/Volumes/WordLinkScanner/WordLinkScanner.app`。
 
 ## 为什么不直接给 `.app` 而是给 `.dmg`？
 
@@ -50,18 +84,19 @@
 用户拿到后经常看到「应用已损坏」。`.dmg` 是 macOS 原生磁盘镜像，能完整保留 app 结构，
 并且自带「拖到 Applications」的安装引导，是 Mac 上分发软件的标准做法。
 
-## 需要上传的最小文件清单
+## 需要上传的文件清单
 
+完整清单见上面**第一步第 3 小点**（含「不要上传」清单）。一句话概括：
+
+> 只传**源码 + `assets/` + `.github/`**；`build/`、`dist/`、`__pycache__/`、`*.spec`、`test_*.py` 一律不传。
+
+其中真正不能漏的是：
 ```
-app.py
-scanner.py
-requirements.txt
-assets/forest_ant.icns
-assets/forest_ant_window.png
+app.py, scanner.py, requirements.txt
+build_mac.sh, 一键编译Mac版.command
+assets/forest_ant.icns, assets/forest_ant_window.png
 .github/workflows/build-mac.yml      ← 关键：云端编译脚本，别漏
 ```
-
-（其余文件传了也不影响。）
 
 ## 常见问题
 
@@ -71,7 +106,8 @@ assets/forest_ant_window.png
 - **不想用 Public 仓库**：Private 仓库的 Actions 分钟数有免费额度，小项目够用，也可选 Private。
 - **下载需要登录 GitHub**：Artifacts 需登录账号下载，属正常。
 - **Artifacts 里为什么只有一个 zip？我要的是 dmg**：GitHub 规定 Artifacts 一律打包成 zip，dmg 就在这个 zip 里，解压即得 `WordLinkScanner.dmg`。
-- **dmg 双击后提示「无法打开，因为它来自身份不明的开发者」**：在 dmg 上右键 → 打开 → 再点「打开」；若 dmg 已挂载，直接把 app 拖进应用程序后按上面第三步的 `xattr -cr` 处理即可。
+- **dmg 双击后打不开／提示「无法打开，因为它来自身份不明的开发者」**：macOS 15 起不再支持「右键 → 打开」，请用**系统设置 → 隐私与安全性 → 页面下方点「仍要打开」**（详见第三步），或直接执行 `xattr -cr /Applications/WordLinkScanner.app`。若 dmg 本身被拦，先挂载它（双击后到「访达」左侧能看到 `WordLinkScanner` 磁盘）再照上法处理。
+- **我传了旧的分发包，编出来还是坏的**：`dist/` 里的旧压缩包带的是旧构建配置。请改用本项目最新提供的 `WordLinkScanner_Mac源码.zip`，或按第一步清单只上传源码文件，别把整个 `dist/` 拖进去。
 - **能不能在 Windows 上直接运行**：不能。macOS 的 `.app` 只能在 Mac 上运行，Windows 版请用 `build.bat` 编出的 `.exe`。
 - **日志里出现 `[WARN] Chromium 安装失败`**：不影响打包，只影响「智能渲染模式」；打开软件后在抓取方式里选「仅 HTTP」也能正常工作。
 

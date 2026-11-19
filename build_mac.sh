@@ -72,8 +72,10 @@ if [ -d "dist/WordLinkScanner.app" ]; then
   echo " BUILD OK -> dist/WordLinkScanner.app"
   echo "======================================"
   echo "用法：把 dist/WordLinkScanner.app 拖到「应用程序」文件夹即可双击运行。"
-  echo "提示：首次运行若被 Gatekeeper 拦截，右键 -> 打开；或执行："
-  echo "  xattr -cr dist/WordLinkScanner.app"
+  echo "提示：首次运行若提示「无法验证开发者」，请到 系统设置 -> 隐私与安全性，"
+  echo "      页面下方点「仍要打开」（macOS 15 起「右键->打开」已失效）；"
+  echo "      若提示「已损坏，无法打开」，先执行："
+  echo "        xattr -cr dist/WordLinkScanner.app"
 
   # 6) 可选：顺手生成 dmg 安装包（任何一步失败都只告警，不影响 .app 已构建成功）
   if command -v hdiutil >/dev/null 2>&1; then

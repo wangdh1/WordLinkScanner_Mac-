@@ -10,8 +10,13 @@
    - 方式 B：Homebrew 用户执行 `brew install python-tk@3.12`。
    - 注意：macOS 系统自带的 `/usr/bin/python3` 通常**不带 tkinter**，脚本会自动跳过它去找带 tkinter 的版本。
 
-2. 首次双击 `.command` 若被系统拦截：右键文件 → 打开 → 再点「打开」；
-   或在终端执行 `chmod +x "一键编译Mac版.command"` 后双击。
+2. 首次双击 `.command` 若被系统拦截：**macOS 15（Sequoia）起「右键 → 打开」已失效**，请到
+   **系统设置 → 隐私与安全性 → 页面下方点「仍要打开」**；或者更省事的做法——终端执行
+   ```
+   chmod +x "一键编译Mac版.command"
+   xattr -cr "一键编译Mac版.command"
+   ```
+   然后再双击（或在终端直接 `bash build_mac.sh`，效果完全相同、完全绕过这个拦截）。
 
 ## 构建步骤
 
@@ -33,14 +38,18 @@
 
 ## 常见问题
 
-- **首次打开提示"无法验证开发者"**：右键 app → 打开 → 再点「打开」。
+- **首次打开提示"无法验证开发者"／"Apple 无法验证此 App 是否包含恶意软件"**：
+  **macOS 15（Sequoia）起「右键 → 打开」的绕过方式已被 Apple 移除**，主方案改为：
+  先双击一次 app（提示被阻止时点「完成」/「好」）→ **系统设置 → 隐私与安全性** →
+  页面往下滚到「安全性」区域 → 点 **「仍要打开」** → 输入密码/指纹确认，之后即可正常启动。
 - **提示"应用已损坏，无法打开，你应该将它移到废纸篓"**（多见于把 app 用 zip 传给别人后）：
-  这不是文件坏了，而是 macOS 给下载文件加了隔离标记。终端执行下面一行即可解决：
+  这不是文件坏了，而是 macOS 给下载文件加了隔离标记。**先执行下面一行，再双击**：
   ```
   xattr -cr /Applications/WordLinkScanner.app
   ```
-  （路径换成 app 实际所在位置；如果 app 还在 dmg 挂载的窗口中，路径是
-  `/Volumes/WordLinkScanner/WordLinkScanner.app`。）
+  这条命令也是上面「无法验证开发者」场景的**并列解法**（效果等同去设置里点「仍要打开」）。
+  路径换成 app 实际所在位置；如果 app 还在 dmg 挂载的窗口中（或本地构建后仍留在 `dist/` 里），
+  路径分别是 `/Volumes/WordLinkScanner/WordLinkScanner.app`、`dist/WordLinkScanner.app`。
 - **提示缺少 tkinter**：说明选到的 Python 不带 Tcl/Tk，按上面「前提条件」装官方 Python 后重试。
 - **浏览器渲染不工作**：脚本已自动安装 Playwright Chromium；若仍失败，终端执行
   `<你的python> -m playwright install chromium`；软件里也可把抓取方式切到「仅 HTTP」。
@@ -57,5 +66,11 @@
 ```
 app.py, scanner.py, requirements.txt,
 assets/forest_ant.ico, assets/forest_ant.icns, assets/forest_ant_window.png,
-build_mac.sh, 一键编译Mac版.command, MAC_README.md
+build_mac.sh, 一键编译Mac版.command, MAC_README.md,
+.gitignore, .gitattributes
 ```
+
+> `.gitignore` 用来挡住 `build/`、`dist/`、`__pycache__/`、`*.spec` 等构建产物，
+> 避免它们被误传进仓库分发（那正是「拿到旧配置、编出坏包」的根源）；
+> `.gitattributes` 锁定脚本为 LF 行尾，防止在 Windows 上 checkout 后脚本变成 CRLF、
+> 到 macOS 上执行报 `bad interpreter: /bin/bash^M`。

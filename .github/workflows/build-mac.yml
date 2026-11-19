@@ -45,6 +45,7 @@ jobs:
       # 注意 macOS 的 --add-data 分隔符是冒号 ":"（Windows 才是分号）。
       - name: 打包 macOS .app（onedir）
         run: |
+          set -euo pipefail
           python -m PyInstaller \
             --onedir --windowed --clean --noconfirm \
             --name WordLinkScanner \
@@ -79,11 +80,9 @@ jobs:
           set -euo pipefail
           xattr -cr dist/WordLinkScanner.app || true
           codesign --force --deep --sign - dist/WordLinkScanner.app
-          if codesign --verify --deep --strict dist/WordLinkScanner.app; then
-            echo "SIGN_OK"
-          else
-            echo "[WARN] 签名校验未通过，仍继续产出 dmg（用户侧可用 xattr -cr 兜底）"
-          fi
+          codesign --verify --deep --strict --verbose=2 dist/WordLinkScanner.app \
+            && echo "SIGN_OK" \
+            || echo "[WARN] codesign verify 未通过（macOS 15 可能对 --deep 报 deprecated），继续产出 dmg"
 
       # 关键改动 3：在 macOS runner 上原生用 hdiutil 制作 dmg。
       # dmg 是磁盘镜像，内含 app 与 /Applications 软链接（用户拖拽安装），
