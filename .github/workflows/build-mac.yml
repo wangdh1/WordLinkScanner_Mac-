@@ -4,6 +4,11 @@ name: Build macOS App (WordLinkScanner)
 # 使用 GitHub 官方 macOS runner。macos-latest 会指向当前可用的最新 macOS
 # （通常为 Apple Silicon ARM64，与 M3 同架构）；若你的账号不支持该标签，
 # 把下一行的 macos-latest 改成 macos-13（Intel，M3 上经 Rosetta 2 可运行）。
+#
+# 产物：WordLinkScanner.dmg（内含已 ad-hoc 签名的 WordLinkScanner.app + Applications 快捷方式）
+# 为什么不再直接上传 .app：GitHub 的 upload-artifact 会把 .app 目录打成 zip，
+# 而 zip 不保留 macOS 的符号链接与扩展属性，解压后 app 结构被破坏，
+# 系统会报「应用已损坏，无法打开」。所以这里统一用 dmg 分发。
 on:
   workflow_dispatch:
 
@@ -27,13 +32,21 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-      - name: 安装 Playwright Chromium（渲染模式用）
-        run: python -m playwright install chromium
+      # Chromium 仅「智能渲染模式」需要；某些 runner 上 arm64 下载可能失败，
+      # 因此允许失败不阻塞，保证打包主线一定走完。
+      - name: 安装 Playwright Chromium（渲染模式用，允许失败）
+        run: python -m playwright install chromium || echo "[WARN] Chromium 安装失败，不阻塞打包（可退化为仅 HTTP 模式）"
 
-      - name: 打包 macOS .app
+      # 关键改动 1：--onedir 取代 --onefile。
+      # macOS 上 onedir 产出标准 .app 包（内含 Contents/Frameworks），
+      # 启动更快、无需每次运行解压到临时目录、且代码签名可覆盖全部二进制，
+      # 稳定性远高于 onefile（onefile 在 macOS 上易被杀软/Gatekeeper 误判）。
+      # 其余参数（--windowed、图标、--add-data、--collect-*、hidden-import）全部保留。
+      # 注意 macOS 的 --add-data 分隔符是冒号 ":"（Windows 才是分号）。
+      - name: 打包 macOS .app（onedir）
         run: |
           python -m PyInstaller \
-            --onefile --windowed --clean --noconfirm \
+            --onedir --windowed --clean --noconfirm \
             --name WordLinkScanner \
             --icon=assets/forest_ant.icns \
             --add-data "assets/forest_ant_window.png:assets" \
@@ -46,12 +59,56 @@ jobs:
             --hidden-import=greenlet \
             app.py
 
-      - name: 校验产物
-        run: test -d dist/WordLinkScanner.app && echo "APP OK"
+      - name: 校验 .app 产物
+        run: |
+          set -euo pipefail
+          test -d dist/WordLinkScanner.app
+          echo "APP DIR OK"
+          test -f dist/WordLinkScanner.app/Contents/MacOS/WordLinkScanner
+          echo "APP EXEC OK"
 
-      - name: 上传 .app（在 Actions 运行页底部 Artifacts 下载）
+      # 关键改动 2：ad-hoc 签名（--sign -）。
+      # 未签名的 app 在 Apple Silicon 上会被内核直接拒绝加载（报「已损坏」），
+      # 这是用户遇到的核心问题之一。ad-hoc 签名不需要开发者证书，本地即可完成。
+      # --deep 让签名递归覆盖 Contents/Frameworks 下的 dylib 与 Python 框架。
+      # 注意：签名本身必须成功（否则产物不可用，直接失败）；但「校验」用软失败，
+      # 因为 PyInstaller 的 Frameworks 里二进制极多，个别嵌套 dylib 偶有校验不过，
+      # 此时 dmg 仍可用（配合 xattr -cr 即可），不应因此丢掉整个产物。
+      - name: Ad-hoc 代码签名（消除「应用已损坏」）
+        run: |
+          set -euo pipefail
+          xattr -cr dist/WordLinkScanner.app || true
+          codesign --force --deep --sign - dist/WordLinkScanner.app
+          if codesign --verify --deep --strict dist/WordLinkScanner.app; then
+            echo "SIGN_OK"
+          else
+            echo "[WARN] 签名校验未通过，仍继续产出 dmg（用户侧可用 xattr -cr 兜底）"
+          fi
+
+      # 关键改动 3：在 macOS runner 上原生用 hdiutil 制作 dmg。
+      # dmg 是磁盘镜像，内含 app 与 /Applications 软链接（用户拖拽安装），
+      # 下载/传输过程中不会像 zip 那样破坏 app 包结构。
+      # 用 macOS 官方推荐的 ditto 复制 bundle（完整保留符号链接/扩展属性/权限）。
+      - name: 制作 dmg 安装镜像
+        run: |
+          set -euo pipefail
+          rm -rf dmg-src dist/WordLinkScanner.dmg
+          mkdir -p dmg-src
+          ditto dist/WordLinkScanner.app dmg-src/WordLinkScanner.app
+          ln -s /Applications dmg-src/Applications
+          hdiutil create -volname "WordLinkScanner" -srcfolder dmg-src -ov -format UDZO dist/WordLinkScanner.dmg
+          hdiutil verify dist/WordLinkScanner.dmg
+          test -s dist/WordLinkScanner.dmg
+          echo "DMG_OK"
+          ls -lh dist/WordLinkScanner.dmg
+          shasum -a 256 dist/WordLinkScanner.dmg
+
+      # 关键改动 4：只上传 dmg，不再上传裸 .app 目录。
+      # artifact 名不写架构：若按注释把 runner 换成 macos-13（Intel），名字依然准确。
+      - name: 上传 dmg（Actions 运行页底部 Artifacts 下载）
         uses: actions/upload-artifact@v4
         with:
-          name: WordLinkScanner-macOS-ARM64
-          path: dist/WordLinkScanner.app
+          name: WordLinkScanner-macOS-dmg
+          path: dist/WordLinkScanner.dmg
           retention-days: 30
+          if-no-files-found: error

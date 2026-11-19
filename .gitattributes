@@ -1,0 +1,14 @@
+# 强制 shell 脚本使用 LF 行尾。
+# 原因：Windows 上 git 若开启 core.autocrlf=true，会把脚本签出成 CRLF，
+# 推到 GitHub 后 macOS 执行会报 `bad interpreter: /bin/bash^M` / `$'\r': command not found`。
+*.sh       text eol=lf
+*.command  text eol=lf
+*.py       text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.md       text eol=lf
+*.txt      text eol=lf
+# 二进制资源，禁止任何行尾转换
+*.png      binary
+*.icns     binary
+*.ico      binary
