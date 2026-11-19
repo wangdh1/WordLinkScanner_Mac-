@@ -1,0 +1,55 @@
+name: Build macOS App (WordLinkScanner)
+
+# 手动触发：在 GitHub 仓库 Actions 页点 "Run workflow" 即可。
+# 使用 GitHub 官方的 macOS Apple Silicon  runner（macos-14 = M1/M2/M3 同架构 ARM64）。
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout 源码
+        uses: actions/checkout@v4
+
+      - name: 选择 Python 3.12（带 tkinter）
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 校验 tkinter 可用
+        run: python -c "import tkinter; print('tkinter OK')"
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: 安装 Playwright Chromium（渲染模式用）
+        run: python -m playwright install chromium
+
+      - name: 打包 macOS .app
+        run: |
+          python -m PyInstaller \
+            --onefile --windowed --clean --noconfirm \
+            --name WordLinkScanner \
+            --icon=assets/forest_ant.icns \
+            --add-data "assets/forest_ant_window.png:assets" \
+            --add-data "assets/forest_ant.icns:assets" \
+            --collect-data certifi \
+            --hidden-import=soupsieve \
+            --hidden-import=charset_normalizer \
+            --hidden-import=openpyxl \
+            --collect-all playwright \
+            --hidden-import=greenlet \
+            app.py
+
+      - name: 校验产物
+        run: test -d dist/WordLinkScanner.app && echo "APP OK"
+
+      - name: 上传 .app（在 Actions 运行页底部 Artifacts 下载）
+        uses: actions/upload-artifact@v4
+        with:
+          name: WordLinkScanner-macOS-ARM64
+          path: dist/WordLinkScanner.app
+          retention-days: 30

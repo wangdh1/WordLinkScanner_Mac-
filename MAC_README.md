@@ -1,0 +1,49 @@
+# WordLinkScanner macOS 版 —— 构建说明
+
+这个软件用 Python + tkinter 编写。**macOS 应用必须在 Mac 本机编译**（PyInstaller 不能跨平台交叉编译），
+所以这里给你的是「源码 + 一键构建脚本」。在你的 MacBook Air M3 上跑一次脚本，就会生成原生 `.app`。
+
+## 前提条件（只需做一次）
+
+1. 安装 **带 tkinter 的官方 Python 3.10~3.12**：
+   - 方式 A（推荐）：到 python.org 下载 macOS 安装包，安装时保持默认选项（含 Tcl/Tk）。
+   - 方式 B：Homebrew 用户执行 `brew install python-tk@3.12`。
+   - 注意：macOS 系统自带的 `/usr/bin/python3` 通常**不带 tkinter**，脚本会自动跳过它去找带 tkinter 的版本。
+
+2. 首次双击 `.command` 若被系统拦截：右键文件 → 打开 → 再点「打开」；
+   或在终端执行 `chmod +x "一键编译Mac版.command"` 后双击。
+
+## 构建步骤
+
+1. 把整个文件夹（保持现有目录结构）拷贝到 Mac 上，例如放到 `~/WordLinkScanner`。
+2. **双击 `一键编译Mac版.command`**，会自动：
+   - 检测带 tkinter 的 Python；
+   - 安装依赖；
+   - 安装 Playwright Chromium（智能渲染模式用，政务站 WAF 需要）；
+   - 打包生成 `dist/WordLinkScanner.app`。
+3. 编译完成后，把 `dist/WordLinkScanner.app` 拖到「应用程序」文件夹，即可双击运行。
+
+> 如果偏好命令行：终端进入文件夹后执行 `bash build_mac.sh`，效果完全相同。
+
+## 常见问题
+
+- **首次打开提示"无法验证开发者"**：右键 app → 打开；或终端执行
+  `xattr -cr dist/WordLinkScanner.app` 去掉隔离属性。
+- **提示缺少 tkinter**：说明选到的 Python 不带 Tcl/Tk，按上面「前提条件」装官方 Python 后重试。
+- **浏览器渲染不工作**：脚本已自动安装 Playwright Chromium；若仍失败，终端执行
+  `<你的python> -m playwright install chromium`；软件里也可把抓取方式切到「仅 HTTP」。
+- **图标**：打包已内置森林蚂蚁 `.icns`，Dock 与 Finder 均显示该图标。
+
+## 与 Windows 版的差异
+
+- 功能、字段、导出格式（12 列 Excel/CSV）完全一致。
+- 渲染通道：Windows 版优先用系统 Edge/Chrome；macOS 版用 Playwright 自带 Chromium（脚本已安装）。
+- 产物形式：Windows 是单个 `.exe`；macOS 是 `.app` 应用包。
+
+## 文件清单（构建需要的最小集）
+
+```
+app.py, scanner.py, requirements.txt,
+assets/forest_ant.ico, assets/forest_ant.icns, assets/forest_ant_window.png,
+build_mac.sh, 一键编译Mac版.command, MAC_README.md
+```
